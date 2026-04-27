@@ -1,0 +1,150 @@
+ index
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>21點算牌練習</title>
+    <style>
+        body { text-align: center; font-family: 'PingFang TC', sans-serif; background: #eceff1; padding-top: 20px; color: #37474f; }
+        .container { background: white; max-width: 500px; margin: auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .instructions { text-align: left; background: #e3f2fd; padding: 15px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; line-height: 1.6; }
+        .card { font-size: 55px; border: 3px solid #455a64; display: inline-block; width: 110px; height: 150px; line-height: 150px; margin: 10px; border-radius: 12px; background: #fff; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+        .red { color: #e53935; border-color: #e53935; }
+        button { padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 10px; border: none; border-radius: 8px; transition: 0.3s; }
+        #startBtn { background: #1e88e5; color: white; }
+        #drawBtn { background: #43a047; color: white; }
+        #drawBtn:disabled { background: #b0bec5; cursor: not-allowed; }
+        #submitBtn { background: #fb8c00; color: white; }
+        input[type="number"] { padding: 8px; width: 60px; font-size: 18px; text-align: center; border: 2px solid #cfd8dc; border-radius: 5px; }
+        .status { font-weight: bold; color: #546e7a; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>21點算牌練習</h1>
+    
+    <div class="instructions">
+        <strong>💡 操作說明：</strong><br>
+        1. 選擇模式（完整/隨機）並點擊「開始挑戰」。<br>
+        2. 每次點擊「下一組」會出現兩張牌（批次處理）。<br>
+        3. <strong>算牌規則：</strong> 2-6 (+1)、7-9 (0)、10-A (-1)。<br>
+        4. 牌抽完後輸入最終累計值並提交驗證。
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        模式：<select id="mode" style="padding: 5px; border-radius: 5px;">
+            <option value="52">完整牌組 (52張)</option>
+            <option value="random">隨機部分牌</option>
+        </select>
+    </div>
+    
+    <p class="status">剩餘牌數：<span id="left">--</span> | 耗時：<span id="timer">0</span> 秒</p>
+
+    <div class="card" id="c1">?</div>
+    <div class="card" id="c2">?</div>
+
+    <br>
+    <button id="startBtn">開始挑戰</button>
+    <button id="drawBtn" disabled>下一組</button>
+
+    <div id="inputArea" style="display:none; margin-top:20px; border-top:2px dashed #cfd8dc; padding-top:20px;">
+        <p><strong>挑戰結束！請輸入最終 Count：</strong></p>
+        <input type="number" id="userAns" placeholder="0">
+        <button id="submitBtn">提交驗證</button>
+    </div>
+    <p id="result" style="font-size: 20px; font-weight: bold; margin-top: 20px;"></p>
+</div>
+
+<script>
+    var count = 0;
+    var seconds = 0;
+    var timer;
+    var deck = [];
+
+    function initDeck() {
+        var suits = ['♠', '♥', '♦', '♣'];
+        var values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        var temp = [];
+        for (var s of suits) {
+            for (var v of values) {
+                temp.push({v: v, s: s});
+            }
+        }
+      
+        temp.sort(() => Math.random() - 0.5);
+
+        if (document.getElementById('mode').value === "random") {
+           
+            var num = Math.floor(Math.random() * 20) * 2 + 10; 
+            temp = temp.slice(0, num);
+        }
+        return temp;
+    }
+
+    document.getElementById('startBtn').onclick = function() {
+        count = 0; seconds = 0;
+        document.getElementById('result').innerText = "";
+        document.getElementById('userAns').value = "";
+        document.getElementById('inputArea').style.display = "none";
+        document.getElementById('drawBtn').disabled = false;
+        document.getElementById('mode').disabled = true; // 開始後鎖定模式
+        
+        deck = initDeck();
+        document.getElementById('left').innerText = deck.length;
+
+        clearInterval(timer);
+        timer = setInterval(() => { 
+            seconds++; 
+            document.getElementById('timer').innerText = seconds; 
+        }, 1000);
+        draw(); 
+    };
+
+    function draw() {
+        if (deck.length < 2) return;
+
+        for (var i = 1; i <= 2; i++) {
+            var card = deck.pop();
+            var el = document.getElementById('c' + i);
+            el.innerText = card.s + card.v;
+            el.className = (card.s == '♥' || card.s == '♦') ? 'card red' : 'card';
+
+            // --- 🔴
+            var Card = card.v; 
+            if (['2','3','4','5','6'].includes(Card)) {
+                count++;
+            } 
+            else if (['10','J','Q','K','A'].includes(Card)) {
+                count--;
+            }
+            // 7, 8, 9 為中性牌，不執行操作 (即 +0)
+        }
+
+        document.getElementById('left').innerText = deck.length;
+        if (deck.length === 0) {
+            document.getElementById('drawBtn').disabled = true;
+            document.getElementById('mode').disabled = false;
+            document.getElementById('inputArea').style.display = "block";
+        }
+    }
+
+    document.getElementById('drawBtn').onclick = draw;
+
+    document.getElementById('submitBtn').onclick = function() {
+        clearInterval(timer);
+        var ans = document.getElementById('userAns').value;
+        if (ans === "") { alert("請輸入數字！"); return; }
+        
+        if (ans == count) {
+            document.getElementById('result').innerHTML = "✅ 正確！<br><span style='font-size:14px";
+        } else {
+            document.getElementById('result').innerHTML = "❌ 錯誤！正確答案是 " + count;
+        }
+    };
+</script>
+
+</body>
+</html>
+我要怎麼把這個變成一個連結
